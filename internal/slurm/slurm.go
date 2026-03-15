@@ -1,7 +1,11 @@
-package internal
+package slurm
+
+import (
+	"fmt"
+)
 
 type ChainItem interface {
-	execute() error
+	Execute() error
 }
 
 type ChainType string
@@ -13,6 +17,7 @@ const (
 type Chain struct {
 	Type ChainType
 	Items []ChainItem
+	Args []string
 }
 
 type Job struct {
@@ -20,9 +25,11 @@ type Job struct {
 	Args []string
 }
 
-func (c Chain) execute() error {
+func (c Chain) Execute() error {
+	fmt.Println("Chain!")
 	return nil
 }
-func (j Job) execute() error {
+func (j Job) Execute() error {
+	fmt.Println(j.Args)
 	return nil
 }

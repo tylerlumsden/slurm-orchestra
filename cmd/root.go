@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	//"github.com/tylerlumsden/slurm-orchestra/internal"
+	"github.com/tylerlumsden/slurm-orchestra/internal/parser"
 )
 
 var rootCmd = &cobra.Command {
@@ -11,9 +11,15 @@ var rootCmd = &cobra.Command {
 	Short: "Orchestra is a Slurm orchestrator which manages and runs a set of jobs from a YAML file",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		yamlFile := args[0]
-		fmt.Println(yamlFile)
-
+		file := args[0]
+		chain, err := parser.Parse(file)
+		if err != nil {
+			return err
+		}
+		err = chain.Execute()
+		if err != nil {
+			return err
+		}
 		return nil
 	},
 }
