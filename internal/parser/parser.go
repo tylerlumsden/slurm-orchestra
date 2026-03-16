@@ -43,6 +43,7 @@ func toStringSlice(key string, val interface{}) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]string, len(raw))
 	for i, value := range raw {
 		str, ok := value.(string)
@@ -57,25 +58,31 @@ func toStringSlice(key string, val interface{}) ([]string, error) {
 func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 	if _, ok := node["cmds"]; ok {
 		item := slurm.Job{}
+
 		for key, value := range node {
 			switch key {
+
 			case "cmds":
 				if list, err := toStringSlice(key, value); err == nil {
 					item.Commands = list
 				} else {
 					return nil, err
 				}
+
 			default:
 				item.Args = append(item.Args, fmt.Sprintf("%v", value))
 			}
 		}
+
 		return &item, nil
 	} 
 	
 	if _, ok := node["jobs"]; ok {
 		item := slurm.Chain{}
+
 		for key, value := range node {
 			switch key {
+
 			case "jobs":
 				list, err := toSlice(key, value)
 				if err != nil {
@@ -88,10 +95,12 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 					}
 					item.Items = append(item.Items, new_item)
 				}
+
 			default:
 				item.Args = append(item.Args, fmt.Sprintf("%s=%v", key, value))
 			}
 		}
+		
 		return &item, nil
 	} 
 

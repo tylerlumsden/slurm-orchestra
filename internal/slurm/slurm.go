@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"os/exec"
+	"time"
 )
 
 type ChainItem interface {
@@ -61,7 +62,24 @@ func (j Job) Execute() error {
 		return err
 	}
 	
-	fmt.Println(jobId)
 	// Poll and wait until the job is done
-	return nil
+	pollCommand := fmt.Sprintf("sacct -j %s --format=State --noheader | awk 'NR==1{print $1}'", jobId)
+	for {
+		time.Sleep(time.Minute)
+		output, err := exec.Command("sh", "-c", pollCommand).Output()
+		if err != nil {
+			return err
+		}
+		state := strings.TrimSpace(string(output))
+		switch state {
+		case "COMPLETED":
+			return nil
+		case "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "REVOKED":
+			return fmt.Errorf("job with id %s failed: %s", jobId, state)
+		case "PENDING", "RUNNING", "SUSPENDED", "REQUEUED", "":
+			continue
+		default:
+			return fmt.Errorf("job with id %s reached an unhandled state: %s", jobId, state)
+		}
+	}
 }
