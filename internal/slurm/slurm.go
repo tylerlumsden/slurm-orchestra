@@ -2,7 +2,6 @@ package slurm
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"os/exec"
 	"time"
@@ -34,13 +33,18 @@ func sbatch(script string) (string, error) {
 
 	fmt.Println("Submitting sbatch script:\n" + command)
 
-	cmd := exec.Command("sbatch")
+	var stderr strings.Builder
+	cmd := exec.Command("sbatch", "--parsable")
 	cmd.Stdin = strings.NewReader(command)
-	jobId, err := cmd.Output()
+	cmd.Stderr = &stderr
+	jobIdRaw, err := cmd.Output()
 	if err != nil {
+		if stderr.Len() > 0 {
+			fmt.Printf("%s\n", stderr.String())
+		}
 		return "", err
 	}
-	return string(jobId), nil
+	return strings.TrimSpace(string(jobIdRaw)), nil
 }
 
 func (c Chain) Execute() error {
@@ -53,18 +57,21 @@ func (j Job) Execute() error {
 		args[i] = fmt.Sprintf("#SBATCH %s", args[i])
 	}
 
-	// TODO resolve variables in the commands via context
+	// TODO: resolve variables in the commands via context
 	commands := j.Commands
 
-	script := strings.Join(slices.Concat(args, commands), "\n")
+	script := strings.Join(append(args, commands...), "\n")
 	jobId, err := sbatch(script)
 	if err != nil {
 		return err
 	}
 	
+	// TODO: Need to validate that the jobId is a valid job id.
+	// 		 If the jobId is not valid, the program will currently enter an infinite loop
 	// Poll and wait until the job is done
 	pollCommand := fmt.Sprintf("sacct -j %s --format=State --noheader | awk 'NR==1{print $1}'", jobId)
 	for {
+		fmt.Printf("Polling job %s...\n", jobId)
 		time.Sleep(time.Minute)
 		output, err := exec.Command("sh", "-c", pollCommand).Output()
 		if err != nil {

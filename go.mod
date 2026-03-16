@@ -1,6 +1,6 @@
 module github.com/tylerlumsden/slurm-orchestra
 
-go 1.22.2
+go 1.21.3
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

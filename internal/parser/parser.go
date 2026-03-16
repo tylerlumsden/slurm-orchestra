@@ -70,7 +70,7 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 				}
 
 			default:
-				item.Args = append(item.Args, fmt.Sprintf("%v", value))
+				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
 			}
 		}
 
@@ -97,7 +97,7 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 				}
 
 			default:
-				item.Args = append(item.Args, fmt.Sprintf("%s=%v", key, value))
+				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
 			}
 		}
 		

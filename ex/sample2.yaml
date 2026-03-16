@@ -1,6 +1,5 @@
 account: def-cbright
 time: 7-00:00:00
 
-
 cmds:
-  - ./build/debug/main 41 --paf=-2 --generate --sort --match 
+  - echo test
