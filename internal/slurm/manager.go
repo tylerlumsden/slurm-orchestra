@@ -136,7 +136,7 @@ func (manager *jobManager) start() {
 		// then something is wrong and we should not let the program continue
 		// It's possible we may want to change this to send an error through some channel in the future
 		if err != nil {
-			log.Fatal("Polling failed after %d retries: %v", pollRetryCount, err)
+			log.Fatalf("Polling failed after %d retries: %v", pollRetryCount, err)
 		}
 
 		for id, channel := range runningJobs {
