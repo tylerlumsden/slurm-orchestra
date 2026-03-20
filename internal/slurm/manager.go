@@ -24,6 +24,11 @@ type workChannel struct {
 	errChannel chan error
 }
 
+type SendChannel struct {
+	jobChannel chan<- Job 
+	errChannel <-chan error
+}
+
 type jobManager struct {
 	channelCap int
 	channels []workChannel
@@ -69,7 +74,7 @@ func Execute(j Job) (string, error) {
 // Should probably implement throwing an error if more than one job manager gets created
 // Or we could do a singleton pattern where we return the same manager as first created
 // This is bad because we would not be respecting job submission limits in our logic, so we will get a lot of errors
-func NewJobManager(capacity int) *jobManager {
+func GetJobManager(capacity int) *jobManager {
 	manager := &jobManager{channelCap: capacity}
 	manager.registerGate.cond = sync.NewCond(&manager.registerGate.mutex)
 	go manager.start()
@@ -105,7 +110,6 @@ func (manager *jobManager) start() {
 	runningJobs := make(map[string]workChannel)
 	for {
 		manager.registerGate.mutex.Lock()
-		defer manager.registerGate.mutex.Unlock()
 		for _, channel := range manager.channels {
 			jobCount := len(channel.jobChannel)
 			for i := 0; i < jobCount; i++ {
@@ -118,6 +122,7 @@ func (manager *jobManager) start() {
 				runningJobs[jobId] = channel
 			}
 		}
+		manager.registerGate.mutex.Unlock()
 
 		var statuses map[string]string
 		var err error
@@ -144,6 +149,7 @@ func (manager *jobManager) start() {
 			switch state {
 			case "COMPLETED":
 				delete(runningJobs, id)
+				channel.errChannel <- nil
 			case "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "REVOKED":
 				channel.errChannel <- fmt.Errorf("job with id %s failed: %s", id, state)
 			case "PENDING", "RUNNING", "SUSPENDED", "REQUEUED":
@@ -155,7 +161,7 @@ func (manager *jobManager) start() {
 	}
 }
 
-func (manager *jobManager) Register() (chan<- Job, <-chan error) {
+func (manager *jobManager) Register() SendChannel {
 	manager.registerGate.mutex.Lock()
 	defer manager.registerGate.mutex.Unlock()
 
@@ -167,21 +173,20 @@ func (manager *jobManager) Register() (chan<- Job, <-chan error) {
 	errChannel := make(chan error, 1)
 	manager.channels = append(manager.channels, workChannel{jobChannel, errChannel})
 
-	return jobChannel, errChannel
+	return SendChannel{jobChannel, errChannel}
 }
 
-func (manager *jobManager) Unregister(jobChannel chan<- Job) {
+func (manager *jobManager) Unregister(send SendChannel) {
 	manager.registerGate.mutex.Lock()
 	defer manager.registerGate.mutex.Unlock()
 
 	for i, channel := range manager.channels {
-		if (jobChannel) == (channel.jobChannel) {
+		if (send.jobChannel) == (channel.jobChannel) {
 			manager.channels = append(manager.channels[:i], manager.channels[i + 1:]...)
 			close(channel.jobChannel)
 			close(channel.errChannel)
+			manager.registerGate.cond.Signal()
 			break
 		}
 	}
-
-	manager.registerGate.cond.Signal()
 }

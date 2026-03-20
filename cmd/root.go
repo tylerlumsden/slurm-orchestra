@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/tylerlumsden/slurm-orchestra/internal/parser"
+	"github.com/tylerlumsden/slurm-orchestra/internal/slurm"
 )
 
 var rootCmd = &cobra.Command {
@@ -17,7 +18,7 @@ var rootCmd = &cobra.Command {
 		if err != nil {
 			return err
 		}
-		err = chain.Execute()
+		err = slurm.Run(chain)
 		if err != nil {
 			return err
 		}
