@@ -12,6 +12,7 @@ import (
 const (
 	pollRetryCount = 5
 	pollRetryTime = time.Second * 30
+	managerLoopTime = time.Second * 30
 )
 
 type gate struct {
@@ -127,6 +128,7 @@ func (manager *jobManager) start() {
 		var statuses map[string]string
 		var err error
 		for i := 0; i < pollRetryCount; i++ {
+			fmt.Printf("Polling %d job(s)...\n", len(runningJobs))
 			keys := make([]string, 0, len(runningJobs))
 			for key := range runningJobs {
 				keys = append(keys, key)
@@ -153,11 +155,13 @@ func (manager *jobManager) start() {
 			case "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "REVOKED":
 				channel.errChannel <- fmt.Errorf("job with id %s failed: %s", id, state)
 			case "PENDING", "RUNNING", "SUSPENDED", "REQUEUED":
+				fmt.Printf("Job %s is %s...\n", id, state)
 				continue
 			default:
 				channel.errChannel<- fmt.Errorf("job with id %s reached an unhandled state: %s", id, state)
 			}
 		}
+		time.Sleep(managerLoopTime)
 	}
 }
 

@@ -1,5 +1,10 @@
-account: def-cbright
-time: 7-00:00:00
-
-cmds:
-  - echo test
+jobs:
+  - account: def-cbright
+    time: 5:00
+    cmds:
+      - echo test
+  - account: def-cbright
+    time: 5:00
+    cmds:
+      - echo test Two!
+  

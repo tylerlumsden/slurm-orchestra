@@ -29,5 +29,7 @@ var rootCmd = &cobra.Command {
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println("\nAn error occured while executing orch")
+	} else {
+		fmt.Println("\nJobs executed successfully!")
 	}
 }

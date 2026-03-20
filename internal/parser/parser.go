@@ -78,7 +78,7 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 	} 
 	
 	if _, ok := node["jobs"]; ok {
-		item := slurm.Chain{}
+		item := slurm.Chain{Type: slurm.Sequential}
 
 		for key, value := range node {
 			switch key {
