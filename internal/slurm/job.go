@@ -161,16 +161,17 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 		var wg sync.WaitGroup
 		localErrorChannel := make(chan error, len(c.Items) - 1)
 		var errs []error
-		for i := c.Range.Begin; i <= c.Range.End; i = i + c.Range.Step {
+		for outerIndex := c.Range.Begin; outerIndex <= c.Range.End; outerIndex = outerIndex + c.Range.Step {
 			if c.Range.RangeVar != "" {
-				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
+				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", outerIndex)
 			}
-			for i, item := range c.Items {
+			for innerIndex, item := range c.Items {
 				newCtx := ctx
-				if i != 0 {
+				newCtx.Vars = maps.Clone(ctx.Vars)
+				if outerIndex != 0 || innerIndex != 0 {
 					newCtx.SendChan = manager.Register()
 				}
-
+				wg.Add(1)
 				go func(item ChainItem, ctx Context) {
 					defer wg.Done()
 					err := item.Run(manager, ctx)

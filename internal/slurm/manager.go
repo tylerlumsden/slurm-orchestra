@@ -111,6 +111,7 @@ func (manager *jobManager) start() {
 	runningJobs := make(map[string]workChannel)
 	for {
 		manager.registerGate.mutex.Lock()
+		fmt.Printf("There is %d registered channel(s)\n", len(manager.channels))
 		for _, channel := range manager.channels {
 			jobCount := len(channel.jobChannel)
 			for i := 0; i < jobCount; i++ {
@@ -168,6 +169,8 @@ func (manager *jobManager) start() {
 func (manager *jobManager) Register() SendChannel {
 	manager.registerGate.mutex.Lock()
 	defer manager.registerGate.mutex.Unlock()
+
+	fmt.Println("Registering channel...")
 
 	for len(manager.channels) >= manager.channelCap {
 		manager.registerGate.cond.Wait()
