@@ -170,6 +170,7 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 					return nil, err
 				} 
 			} else {
+				fmt.Println("Appending key" + key)
 				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
 			}
 		}

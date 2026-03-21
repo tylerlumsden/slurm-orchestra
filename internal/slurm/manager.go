@@ -56,9 +56,9 @@ func sbatch(script string) (string, error) {
 }
 
 func Execute(j Job) (string, error) {
-	args := j.Args 
-	for i := range args {
-		args[i] = fmt.Sprintf("#SBATCH %s", args[i])
+	var args []string
+	for i := range j.Args {
+		args = append(args, fmt.Sprintf("#SBATCH %s", args[i]))
 	}
 
 	// TODO: resolve variables in the commands via context

@@ -1,23 +1,10 @@
-<<<<<<< HEAD
+range:
+  begin: 0
+  end: 3
 jobs:
   - account: def-cbright
     time: 5:00
     cmds:
       - echo test
-  - account: def-cbright
-    time: 5:00
-    cmds:
-      - echo test Two!
-  
-=======
-args: 
-  - account: def-cbright
-  - time: 7-00:00:00
 
-range:
-  begin: 0
-  end: 10
-jobs: 
-  - cmds:
-    - echo test
->>>>>>> 911c781 (Ranges for chains implemented)
+  
