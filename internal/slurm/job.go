@@ -3,6 +3,10 @@ package slurm
 import (
 	"sync"
 	"fmt"
+	"slices"
+	"maps"
+	"os"
+	"strings"
 )
 
 type ChainItem interface {
@@ -25,18 +29,36 @@ const (
 type Chain struct {
 	Type ChainType
 	Items []ChainItem
-	Args []string
+	Args map[string]string
 	Range CustomRange
 }
 
 type Job struct {
 	Commands []string
-	Args []string
+	Args map[string]string
 }
 
 type Context struct {
 	SendChan SendChannel
 	Vars map[string]string
+	Args map[string]string
+}
+
+func CreateContext() Context {
+	item := Context{}
+
+	item.Vars = make(map[string]string)
+	item.Args = make(map[string]string)
+
+	return item
+}
+
+func CreateJob() Job {
+	item := Job{}
+
+	item.Args = make(map[string]string)
+
+	return item
 }
 
 func CreateChain() Chain {
@@ -48,6 +70,8 @@ func CreateChain() Chain {
 	item.Range.Step = 1
 	item.Range.RangeVar = ""
 
+	item.Args = make(map[string]string)
+
 	return item
 }
 
@@ -56,17 +80,72 @@ func Run(item ChainItem) error {
 	send := manager.Register()
 	defer manager.Unregister(send)
 
-	return item.Run(manager, Context{SendChan: send})
+	ctx := CreateContext()
+	ctx.SendChan = send
+	return item.Run(manager, ctx)
+}
+
+func resolve(str string, resolver map[string]string) (string, error) {
+	var err error
+	return os.Expand(str, func(key string) string {
+		if val, ok := resolver[key]; ok {
+			return val
+		}
+
+		if val := os.Getenv(key); val != "" {
+			return val
+		}
+
+		if strings.HasPrefix(key, "SLURM_") {
+			return "$" + key
+		}
+
+		err = fmt.Errorf("Unknown variable: $%s\n", key)
+		return ""
+	}), err
+}
+
+func (j Job) newResolved(ctx Context) (Job, error) {
+	newJob := Job{
+		Commands: slices.Clone(j.Commands),
+		Args: maps.Clone(j.Args),
+	}
+
+	for key, value := range ctx.Args {
+		newJob.Args[key] = value
+	}
+
+	for i := range newJob.Commands {
+		resolvedCmd, err := resolve(newJob.Commands[i], ctx.Vars)
+		if err != nil {
+			return Job{}, err
+		}
+		newJob.Commands[i] = resolvedCmd
+	}
+
+	for key, value := range newJob.Args {
+		resolvedArg, err := resolve(value, ctx.Vars)
+		if err != nil {
+			return Job{}, err
+		}
+		newJob.Args[key] = resolvedArg
+	}
+
+	return newJob, nil
 }
 
 func (j Job) Run(manager *jobManager, ctx Context) error {
-	ctx.SendChan.jobChannel <- j
-	err := <- ctx.SendChan.errChannel
+	newJob, err := j.newResolved(ctx)
+	if err != nil {
+		return err
+	}
+	ctx.SendChan.jobChannel <- newJob
+	err = <- ctx.SendChan.errChannel
 	return err
 }
 
 func (c Chain) Run(manager *jobManager, ctx Context) error {
-	for i := c.Range.Begin; i <= c.Range.End; i++ {
+	for i := c.Range.Begin; i <= c.Range.End; i = i + c.Range.Step {
 		if c.Range.RangeVar != "" {
 			ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
 		}

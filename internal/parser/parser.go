@@ -110,7 +110,7 @@ func getJobs(node yamlNode, item *slurm.Chain) error {
 func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 	// TODO: Refactor similarly to chain logic
 	if _, ok := node["cmds"]; ok {
-		item := slurm.Job{}
+		item := slurm.CreateJob()
 
 		for key, value := range node {
 			switch key {
@@ -123,7 +123,11 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 				}
 
 			default:
-				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
+				if _, ok := value.(string); ok {
+					item.Args[key] = value.(string)
+				} else {
+					return nil, fmt.Errorf("Unknown key value could not be decoded as a string\n")
+				}
 			}
 		}
 
@@ -143,8 +147,11 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 					return nil, err
 				} 
 			} else {
-				fmt.Println("Appending key" + key)
-				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
+				if _, ok := value.(string); ok {
+					item.Args[key] = value.(string)
+				} else {
+					return nil, fmt.Errorf("Unknown key value could not be decoded as a string\n")
+				}
 			}
 		}
 		
