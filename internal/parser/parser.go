@@ -107,6 +107,19 @@ func getJobs(node yamlNode, item *slurm.Chain) error {
 	return nil
 }
 
+func getType(node yamlNode, item *slurm.Chain) error {
+	if typeVal, ok := node["type"].(string); ok {
+		chainType := slurm.ChainType(typeVal)
+		switch chainType {
+		case slurm.Sequential, slurm.Parallel:
+			item.Type = chainType
+		default:
+			return fmt.Errorf("unrecognized type for chain node\n")
+		}
+	}
+	return nil
+}
+
 func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 	// TODO: Refactor similarly to chain logic
 	if _, ok := node["cmds"]; ok {
@@ -137,6 +150,7 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 	chainHandlers := map[string]ChainHandler {
 		"range": getRange,
 		"jobs": getJobs,
+		"type": getType,
 	}
 	if _, ok := node["jobs"]; ok {
 		item := slurm.CreateChain()
