@@ -145,26 +145,31 @@ func (j Job) Run(manager *jobManager, ctx Context) error {
 }
 
 func (c Chain) Run(manager *jobManager, ctx Context) error {
-	for i := c.Range.Begin; i <= c.Range.End; i = i + c.Range.Step {
-		if c.Range.RangeVar != "" {
-			ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
-		}
-		switch c.Type {
-		case Sequential:
+	switch c.Type {
+	case Sequential:
+		for i := c.Range.Begin; i <= c.Range.End; i = i + c.Range.Step {
+			if c.Range.RangeVar != "" {
+				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
+			}
 			for _, item := range c.Items {
 				if err := item.Run(manager, ctx); err != nil {
 					return err
 				}
 			}
-		case Parallel:
-			var wg sync.WaitGroup
-			wg.Add(len(c.Items) - 1)
-			localErrorChannel := make(chan error, len(c.Items) - 1)
-			var errs []error
+		}
+	case Parallel:
+		var wg sync.WaitGroup
+		localErrorChannel := make(chan error, len(c.Items) - 1)
+		var errs []error
+		for i := c.Range.Begin; i <= c.Range.End; i = i + c.Range.Step {
+			if c.Range.RangeVar != "" {
+				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
+			}
 			for i, item := range c.Items {
 				if i != 0 {
 					newCtx := ctx
 					newCtx.SendChan = manager.Register()
+					wg.Add(1)
 					go func(item ChainItem, ctx Context) {
 						defer wg.Done()
 						err := item.Run(manager, ctx)
@@ -178,14 +183,14 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 					}
 				}
 			}
-			wg.Wait()
-			close(localErrorChannel)
-			for err := range localErrorChannel {
-				errs = append(errs, err)
-			}
-			if len(errs) != 0 {
-				return errs[0]
-			}
+		}
+		wg.Wait()
+		close(localErrorChannel)
+		for err := range localErrorChannel {
+			errs = append(errs, err)
+		}
+		if len(errs) != 0 {
+			return errs[0]
 		}
 	}
 	return nil
