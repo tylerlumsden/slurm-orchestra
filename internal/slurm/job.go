@@ -166,22 +166,18 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", i)
 			}
 			for i, item := range c.Items {
+				newCtx := ctx
 				if i != 0 {
-					newCtx := ctx
 					newCtx.SendChan = manager.Register()
-					wg.Add(1)
-					go func(item ChainItem, ctx Context) {
-						defer wg.Done()
-						err := item.Run(manager, ctx)
-						if err != nil {
-							localErrorChannel <- err
-						}
-					}(item, newCtx)
-				} else {
-					if err := item.Run(manager, ctx); err != nil {
-						errs = append(errs, err)
-					}
 				}
+
+				go func(item ChainItem, ctx Context) {
+					defer wg.Done()
+					err := item.Run(manager, ctx)
+					if err != nil {
+						localErrorChannel <- err
+					}
+				}(item, newCtx)
 			}
 		}
 		wg.Wait()
