@@ -27,6 +27,8 @@ func Parse(path string) (slurm.ChainItem, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Done parsing " + path)
 	return chain, nil
 }
 
@@ -55,37 +57,8 @@ func toStringSlice(key string, val interface{}) ([]string, error) {
 	return result, nil
 }
 
-func parseRange(node yamlNode) (slurm.CustomRange, error) {
-	var newRange slurm.CustomRange
-
-	if begin, ok := node["begin"].(int); ok {
-		newRange.Begin = begin
-	} else {
-		return slurm.CustomRange{}, fmt.Errorf("Could not find begin for some range\n")
-	}
-
-	if end, ok := node["end"].(int); ok {
-		newRange.End = end
-	} else {
-		return slurm.CustomRange{}, fmt.Errorf("Could not find end for some range\n")
-	}
-
-	if step, ok := node["step"].(int); ok {
-		newRange.Step = step
-	} else {
-		newRange.Step = 1
-	}
-
-	if varName, ok := node["var"].(string); ok {
-		newRange.RangeVar = varName
-	} else {
-		newRange.RangeVar = ""
-	}
-
-	return newRange, nil
-}
-
 type ChainHandler func(yamlNode, *slurm.Chain) error
+
 func getRange(node yamlNode, item *slurm.Chain) error {
 	if rangeNode, ok := node["range"]; ok {
 		if innerNode, ok := rangeNode.(yamlNode); ok {

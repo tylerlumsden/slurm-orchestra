@@ -2,22 +2,22 @@ package slurm
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
-	"strings"
-	"log"
 )
 
 const (
-	pollRetryCount = 5
-	pollRetryTime = time.Second * 30
+	pollRetryCount  = 5
+	pollRetryTime   = time.Second * 30
 	managerLoopTime = time.Second * 30
 )
 
 type gate struct {
 	mutex sync.Mutex
-	cond *sync.Cond
+	cond  *sync.Cond
 }
 
 type workChannel struct {
@@ -26,14 +26,14 @@ type workChannel struct {
 }
 
 type SendChannel struct {
-	jobChannel chan<- Job 
+	jobChannel chan<- Job
 	errChannel <-chan error
 }
 
 type jobManager struct {
-	channelCap int
-	channels []workChannel
-	registerGate gate 
+	channelCap   int
+	channels     []workChannel
+	registerGate gate
 }
 
 func sbatch(script string) (string, error) {
@@ -58,7 +58,7 @@ func sbatch(script string) (string, error) {
 func Execute(j Job) (string, error) {
 	var args []string
 	for i := range j.Args {
-		args = append(args, fmt.Sprintf("#SBATCH %s", args[i]))
+		args = append(args, fmt.Sprintf("#SBATCH %s", j.Args[i]))
 	}
 
 	// TODO: resolve variables in the commands via context
@@ -90,7 +90,7 @@ func pollState(jobIds []string) (map[string]string, error) {
 		return nil, err
 	}
 
-	statuses := make(map[string]string)	
+	statuses := make(map[string]string)
 	for _, line := range strings.Split(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 2 {
@@ -117,7 +117,7 @@ func (manager *jobManager) start() {
 				job := <-channel.jobChannel
 				jobId, err := Execute(job)
 				if err != nil {
-					channel.errChannel <- err 
+					channel.errChannel <- err
 					continue
 				}
 				runningJobs[jobId] = channel
@@ -158,7 +158,7 @@ func (manager *jobManager) start() {
 				fmt.Printf("Job %s is %s...\n", id, state)
 				continue
 			default:
-				channel.errChannel<- fmt.Errorf("job with id %s reached an unhandled state: %s", id, state)
+				channel.errChannel <- fmt.Errorf("job with id %s reached an unhandled state: %s", id, state)
 			}
 		}
 		time.Sleep(managerLoopTime)
@@ -186,7 +186,7 @@ func (manager *jobManager) Unregister(send SendChannel) {
 
 	for i, channel := range manager.channels {
 		if (send.jobChannel) == (channel.jobChannel) {
-			manager.channels = append(manager.channels[:i], manager.channels[i + 1:]...)
+			manager.channels = append(manager.channels[:i], manager.channels[i+1:]...)
 			close(channel.jobChannel)
 			close(channel.errChannel)
 			manager.registerGate.cond.Signal()
