@@ -55,7 +55,87 @@ func toStringSlice(key string, val interface{}) ([]string, error) {
 	return result, nil
 }
 
+func parseRange(node yamlNode) (slurm.CustomRange, error) {
+	var newRange slurm.CustomRange
+
+	if begin, ok := node["begin"].(int); ok {
+		newRange.Begin = begin
+	} else {
+		return slurm.CustomRange{}, fmt.Errorf("Could not find begin for some range\n")
+	}
+
+	if end, ok := node["end"].(int); ok {
+		newRange.End = end
+	} else {
+		return slurm.CustomRange{}, fmt.Errorf("Could not find end for some range\n")
+	}
+
+	if step, ok := node["step"].(int); ok {
+		newRange.Step = step
+	} else {
+		newRange.Step = 1
+	}
+
+	if varName, ok := node["var"].(string); ok {
+		newRange.RangeVar = varName
+	} else {
+		newRange.RangeVar = ""
+	}
+
+	return newRange, nil
+}
+
+type ChainHandler func(yamlNode, *slurm.Chain) error
+func getRange(node yamlNode, item *slurm.Chain) error {
+	if rangeNode, ok := node["range"]; ok {
+		if innerNode, ok := rangeNode.(yamlNode); ok {
+			if begin, ok := innerNode["begin"].(int); ok {
+				item.Range.Begin = begin
+			} else {
+				return fmt.Errorf("range does not have a begin value\n")
+			}
+
+			if end, ok := innerNode["end"].(int); ok {
+				item.Range.End = end
+			} else {
+				return fmt.Errorf("range does not have an end value\n")
+			}
+
+			// Optional
+			if step, ok := innerNode["step"].(int); ok {
+				item.Range.Step = step
+			}
+
+			// Optional
+			if varName, ok := innerNode["var"].(string); ok {
+				item.Range.RangeVar = varName
+			}
+		} else {
+			return fmt.Errorf("range is formatted improperly\n")
+		}
+	}
+
+	return nil
+}
+
+func getJobs(node yamlNode, item *slurm.Chain) error {
+	list, err := toSlice("jobs", node["jobs"])
+	if err != nil {
+		return err
+	}
+	for _, newNode := range list {
+		new_item, err := parseYaml(newNode.(yamlNode))
+		if err != nil {
+			return err
+		}
+		item.Items = append(item.Items, new_item)
+	}
+
+	return nil
+}
+
 func parseYaml(node yamlNode) (slurm.ChainItem, error) {
+	// TODO: Refactor similarly to chain logic
 	if _, ok := node["cmds"]; ok {
 		item := slurm.Job{}
 
@@ -76,27 +156,20 @@ func parseYaml(node yamlNode) (slurm.ChainItem, error) {
 
 		return &item, nil
 	} 
-	
+
+	chainHandlers := map[string]ChainHandler {
+		"range": getRange,
+		"jobs": getJobs,
+	}
 	if _, ok := node["jobs"]; ok {
-		item := slurm.Chain{Type: slurm.Sequential}
+		item := slurm.CreateChain()
 
 		for key, value := range node {
-			switch key {
-
-			case "jobs":
-				list, err := toSlice(key, value)
-				if err != nil {
+			if handler, ok := chainHandlers[key]; ok {
+				if err := handler(node, &item); err != nil {
 					return nil, err
-				}
-				for _, newNode := range list {
-					new_item, err := parseYaml(newNode.(yamlNode))
-					if err != nil {
-						return nil, err
-					}
-					item.Items = append(item.Items, new_item)
-				}
-
-			default:
+				} 
+			} else {
 				item.Args = append(item.Args, fmt.Sprintf("--%s=%v", key, value))
 			}
 		}
