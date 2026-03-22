@@ -1,0 +1,33 @@
+account: rrg-cbright
+time: 7-00:00:00
+job-name: search
+output: myjob_%A.log
+
+type: parallel
+range:
+  begin: 302
+  end: 600
+  var: i
+  work_pool: 100
+  work_var: work_id
+jobs:
+    - type: sequential
+      jobs:
+        - type: parallel
+          range:
+            begin: 0
+            end: 99
+            var: j
+          jobs:
+            - account: rrg-cbright
+              mem: 2G
+              time: 7-00:00:00
+              cmds:
+                - "#SBATCH --requeue"
+                - ./build/debug/main 99 -c 3 1 -n 100 -j $j --paf=-2 uncompress --line=$work_id --input pairs.unique --internal line-$work_id
+        - account: rrg-cbright
+          mem: 10G
+          time: 1-00:00:00
+          cmds:
+            - "#SBATCH --requeue"
+            - ./build/debug/main 99 -c 1 --paf=-2 -n 100 sort --input line-$work_id --output line-$work-id-sorted match --append --input line-$work-id-sorted --output line-$work-id-pairs

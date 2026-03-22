@@ -161,7 +161,8 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 		}
 	case Parallel:
 		var wg sync.WaitGroup
-		localErrorChannel := make(chan error, len(c.Items) - 1)
+		rangeCount := (c.Range.End-c.Range.Begin)/c.Range.Step + 1
+		localErrorChannel := make(chan error, rangeCount*len(c.Items))
 		var errs []error
 
 		var idPool chan int
