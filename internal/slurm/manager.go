@@ -147,6 +147,7 @@ func (manager *jobManager) start() {
 			log.Fatalf("Polling failed after %d retries: %v", pollRetryCount, err)
 		}
 
+		var nRunning, nPending int
 		for id, channel := range runningJobs {
 			state := statuses[id]
 			switch state {
@@ -155,13 +156,15 @@ func (manager *jobManager) start() {
 				channel.errChannel <- nil
 			case "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "REVOKED":
 				channel.errChannel <- fmt.Errorf("job with id %s failed: %s", id, state)
-			case "PENDING", "RUNNING", "SUSPENDED", "REQUEUED":
-				fmt.Printf("Job %s is %s...\n", id, state)
-				continue
+			case "RUNNING", "SUSPENDED", "REQUEUED":
+				nRunning++
+			case "PENDING":
+				nPending++
 			default:
 				channel.errChannel <- fmt.Errorf("job with id %s reached an unhandled state: %s", id, state)
 			}
 		}
+		fmt.Printf("Jobs: %d running, %d pending\n", nRunning, nPending)
 		time.Sleep(managerLoopTime)
 	}
 }
@@ -170,7 +173,7 @@ func (manager *jobManager) Register() SendChannel {
 	manager.registerGate.mutex.Lock()
 	defer manager.registerGate.mutex.Unlock()
 
-	fmt.Println("Registering channel...")
+	//fmt.Println("Registering channel...")
 
 	for len(manager.channels) >= manager.channelCap {
 		manager.registerGate.cond.Wait()

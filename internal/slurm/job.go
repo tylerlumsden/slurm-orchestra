@@ -180,12 +180,14 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 			for innerIndex, item := range c.Items {
 				newCtx := ctx
 				newCtx.Vars = maps.Clone(ctx.Vars)
-				if outerIndex != 0 || innerIndex != 0 {
-					newCtx.SendChan = manager.Register()
-				}
+				isFirst := outerIndex == c.Range.Begin && innerIndex == 0
 				wg.Add(1)
-				go func(item ChainItem, ctx Context) {
+				go func(item ChainItem, ctx Context, isFirst bool) {
 					defer wg.Done()
+					if !isFirst {
+						ctx.SendChan = manager.Register()
+						defer manager.Unregister(ctx.SendChan)
+					}
 					if idPool != nil {
 						workID := <-idPool
 						defer func() { idPool <- workID }()
@@ -199,7 +201,7 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 					if err != nil {
 						localErrorChannel <- err
 					}
-				}(item, newCtx)
+				}(item, newCtx, isFirst)
 			}
 		}
 		wg.Wait()
