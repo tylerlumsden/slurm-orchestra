@@ -83,6 +83,16 @@ func getRange(node yamlNode, item *slurm.Chain) error {
 			if varName, ok := innerNode["var"].(string); ok {
 				item.Range.RangeVar = varName
 			}
+
+			// Optional
+			if workPool, ok := innerNode["work_pool"].(int); ok {
+				item.Range.WorkPool = workPool
+			}
+
+			// Optional
+			if workVar, ok := innerNode["work_var"].(string); ok {
+				item.Range.WorkVar = workVar
+			}
 		} else {
 			return fmt.Errorf("range is formatted improperly\n")
 		}

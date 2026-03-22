@@ -17,7 +17,9 @@ type CustomRange struct {
 	Begin int
 	End int
 	Step int
-    RangeVar string
+	RangeVar string
+	WorkPool int
+	WorkVar  string
 }
 
 type ChainType string
@@ -161,6 +163,15 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 		var wg sync.WaitGroup
 		localErrorChannel := make(chan error, len(c.Items) - 1)
 		var errs []error
+
+		var idPool chan int
+		if c.Range.WorkPool > 0 {
+			idPool = make(chan int, c.Range.WorkPool)
+			for id := 0; id < c.Range.WorkPool; id++ {
+				idPool <- id
+			}
+		}
+
 		for outerIndex := c.Range.Begin; outerIndex <= c.Range.End; outerIndex = outerIndex + c.Range.Step {
 			if c.Range.RangeVar != "" {
 				ctx.Vars[c.Range.RangeVar] = fmt.Sprintf("%d", outerIndex)
@@ -174,6 +185,15 @@ func (c Chain) Run(manager *jobManager, ctx Context) error {
 				wg.Add(1)
 				go func(item ChainItem, ctx Context) {
 					defer wg.Done()
+					if idPool != nil {
+						workID := <-idPool
+						defer func() { idPool <- workID }()
+						workVar := "work_id"
+						if c.Range.WorkVar != "" {
+							workVar = c.Range.WorkVar
+						}
+						ctx.Vars[workVar] = fmt.Sprintf("%d", workID)
+					}
 					err := item.Run(manager, ctx)
 					if err != nil {
 						localErrorChannel <- err
